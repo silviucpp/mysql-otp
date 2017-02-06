@@ -775,8 +775,10 @@ encode_param(Value) when is_integer(Value), Value < 0 ->
         true ->
             encode_param(integer_to_binary(Value))
     end;
-encode_param(Value) when is_float(Value) ->
-    {<<?TYPE_DOUBLE, 0>>, <<Value:64/float-little>>};
+encode_param(Value0) when is_float(Value0) ->
+    Value = float_to_binary(Value0, [compact, {decimals, 8}]),
+    EncLength = lenenc_int_encode(byte_size(Value)),
+    {<<?TYPE_DECIMAL, 0>>, <<EncLength/binary, Value/binary>>};
 encode_param(Value) when is_bitstring(Value) ->
     Binary = encode_bitstring(Value),
     EncLength = lenenc_int_encode(byte_size(Binary)),
