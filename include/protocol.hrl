@@ -125,4 +125,5 @@
 -define(TYPE_STRING, 16#fe).
 -define(TYPE_GEOMETRY, 16#ff).
 
+-define(UNSIGNED_FLAG, 32).
 
