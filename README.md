@@ -16,6 +16,7 @@ Some of the features:
 * Each connection is a gen_server, which makes it compatible with Poolboy (for
   connection pooling) and ordinary OTP supervisors.
 * No records in the public API.
+* SSL.
 * Slow queries are interrupted without killing the connection (MySQL version
   ≥ 5.0.0).
 
@@ -77,39 +78,52 @@ Usage as a dependency
 Using *erlang.mk*:
 
     DEPS = mysql
-    dep_mysql = git https://github.com/mysql-otp/mysql-otp 1.2.0
+    dep_mysql = git https://github.com/mysql-otp/mysql-otp 1.3.0
 
 Using *rebar*:
 
     {deps, [
         {mysql, ".*", {git, "https://github.com/mysql-otp/mysql-otp",
-                       {tag, "1.2.0"}}}
+                       {tag, "1.3.0"}}}
     ]}.
 
-Contributing
-------------
+Tests
+-----
 
-Before running the tests you'll need to generate SSL files and MySQL extra config file.
-In order to do so, please execute `make tests-prep`.
+EUnit tests are executed using `make tests` or `make eunit`.
 
-The MySQL server configuration must include `my-ssl.cnf` file,
-which can be found in `test/ssl/`.
-**Do not run** `make tests-prep` after you start MySQL,
-because CA certificates will no longer match.
+To run individual test suites, use `make eunit t=SUITE` where SUITE is one of
+`mysql_encode_tests`, `mysql_protocol_tests`, `mysql_tests`, `ssl_tests` or
+`transaction_tests`.
 
-For the suite `mysql_tests` you need to start MySQL on localhost and give
-privileges to the `otptest` and `otptestssl` users:
+The encode and protocol test suites does not require a
+running MySQL server on localhost.
+
+For the suites `mysql_tests`, `ssl_tests` and `transaction_tests` you need to
+start MySQL on localhost and give privileges to the user `otptest` and (for
+`ssl_tests`) to the user `otptestssl`:
 
 ```SQL
 grant all privileges on otptest.* to otptest@localhost identified by 'otptest';
 grant all privileges on otptest.* to otptestssl@localhost identified by 'otptestssl' require ssl;
 ```
 
-EUnit tests are executed with `make tests`.
+Before running the test suite `ssl_tests` you'll also need to generate SSL files
+and MySQL extra config file. In order to do so, please execute `make tests-prep`.
+
+The MySQL server configuration must include `my-ssl.cnf` file,
+which can be found in `test/ssl/`.
+**Do not run** `make tests-prep` after you start MySQL,
+because CA certificates will no longer match.
 
 If you run `make tests COVER=1` a coverage report will be generated. Open
 `cover/index.html` to see that any lines you have added or modified are covered
 by a test.
+
+Contributing
+------------
+
+Run the tests and also dialyzer using `make dialyze`.
 
 Linebreak code to 80 characters per line and follow a coding style similar to
 that of existing code.
@@ -118,6 +132,20 @@ Keep commit messages short and descriptive. Each commit message should describe
 the purpose of the commit, the feature added or bug fixed, so that the commit
 log can be used as a comprehensive change log. [CHANGELOG.md](CHANGELOG.md) is
 generated from the commit messages.
+
+Maintaining
+-----------
+
+This is for the project's maintainer only.
+
+Tag a new version using using sematic versioning rules. Push tags using
+`git push --tags`.
+
+After tagging a new version, update the changelog using `make CHANGELOG.md` and
+commit it.
+
+Update the online documentation and coverage reports using `make gh-pages`. Then
+push the gh-pages branch using `git push origin gh-pages`.
 
 License
 -------
