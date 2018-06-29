@@ -10,30 +10,30 @@ protocol in Erlang.
 Some of the features:
 
 * Mnesia style transactions:
-  * Nested transactions are implemented using savepoints.
+  * Nested transactions are implemented using SQL savepoints.
   * Transactions are automatically retried when deadlocks are detected.
-* Uses the binary protocol for prepared statements.
 * Each connection is a gen_server, which makes it compatible with Poolboy (for
   connection pooling) and ordinary OTP supervisors.
 * No records in the public API.
 * SSL.
+* Parametrized queries using cached prepared statements
+  ([What?](https://github.com/mysql-otp/mysql-otp/wiki/Parametrized-queries-using-cached-prepared-statements))
 * Slow queries are interrupted without killing the connection (MySQL version
-  ≥ 5.0.0).
+  ≥ 5.0.0)
+* Implements both protocols: the binary protocol for prepared statements and
+  the text protocol for plain queries.
 
 See also:
 
 * [API documenation](//mysql-otp.github.io/mysql-otp/index.html) (Edoc)
 * [Test coverage](//mysql-otp.github.io/mysql-otp/eunit.html) (EUnit)
-* [Why another MySQL driver?](https://github.com/mysql-otp/mysql-otp/wiki#why-another-mysql-driver) in the wiki
-* [MySQL/OTP + Poolboy](https://github.com/mysql-otp/mysql-otp-poolboy):
-  A simple application that combines MySQL/OTP with Poolboy for connection
-  pooling.
+* [Wiki pages](https://github.com/mysql-otp/mysql-otp/wiki) Connection pooling, related projects and more.
 
 Synopsis
 --------
 
 ```Erlang
-%% Connect (ssl option is not mandatory)
+%% Connect (ssl is optional)
 {ok, Pid} = mysql:start_link([{host, "localhost"}, {user, "foo"},
                               {password, "hello"}, {database, "test"},
                               {ssl, [{cacertfile, "/path/to/ca.pem"}]}]),
@@ -78,13 +78,13 @@ Usage as a dependency
 Using *erlang.mk*:
 
     DEPS = mysql
-    dep_mysql = git https://github.com/mysql-otp/mysql-otp 1.3.0
+    dep_mysql = git https://github.com/mysql-otp/mysql-otp 1.3.2
 
 Using *rebar*:
 
     {deps, [
         {mysql, ".*", {git, "https://github.com/mysql-otp/mysql-otp",
-                       {tag, "1.3.0"}}}
+                       {tag, "1.3.2"}}}
     ]}.
 
 Tests
@@ -136,16 +136,16 @@ generated from the commit messages.
 Maintaining
 -----------
 
-This is for the project's maintainer only.
+This is for the project's maintainer(s) only.
 
-Tag a new version using using sematic versioning rules. Push tags using
-`git push --tags`.
+Tagging a new version:
 
-After tagging a new version, update the changelog using `make CHANGELOG.md` and
-commit it.
-
-Update the online documentation and coverage reports using `make gh-pages`. Then
-push the gh-pages branch using `git push origin gh-pages`.
+1. Before tagging, update src/mysql.app.src and README.md with the new version.
+2. Tag and push tags using `git push --tags`.
+3. After tagging a new version:
+  * Update the changelog using `make CHANGELOG.md` and commit it.
+  * Update the online documentation and coverage reports using `make gh-pages`.
+    Then push the gh-pages branch using `git push origin gh-pages`.
 
 License
 -------

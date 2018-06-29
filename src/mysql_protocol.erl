@@ -67,12 +67,13 @@ handshake(Username, Password, Database, SockModule0, SSLOpts, Socket0,
     handshake_finish_or_switch_auth(Handshake, Password, SockModule, Socket,
                                     SeqNum3).
 
-handshake_finish_or_switch_auth(Handshake, Password, SockModule, Socket,
-                                SeqNum0) ->
+handshake_finish_or_switch_auth(Handshake = #handshake{status = Status}, Password,
+                                SockModule, Socket, SeqNum0) ->
     {ok, ConfirmPacket, SeqNum1} = recv_packet(SockModule, Socket, SeqNum0),
     case parse_handshake_confirm(ConfirmPacket) of
         #ok{status = OkStatus} ->
-            OkStatus = Handshake#handshake.status,
+            %% check status, ignoring bit 16#4000, SERVER_SESSION_STATE_CHANGED.
+            Status = OkStatus band bnot 16#4000,
             {ok, Handshake, SockModule, Socket};
         #auth_method_switch{auth_plugin_name = AuthPluginName,
                             auth_plugin_data = AuthPluginData} ->
@@ -1013,17 +1014,19 @@ parse_packet_header(<<PacketLength:24/little-integer, SeqNum:8/integer>>) ->
     {PacketLength, SeqNum, PacketLength == 16#ffffff}.
 
 %% @doc Splits a packet body into chunks and wraps them in headers. The
-%% resulting list is ready to sent to the socket.
--spec add_packet_headers(PacketBody :: iodata(), SeqNum :: integer()) ->
-    {PacketWithHeaders :: iodata(), NextSeqNum :: integer()}.
-add_packet_headers(PacketBody, SeqNum) ->
-    Bin = iolist_to_binary(PacketBody),
-    Size = size(Bin),
+%% resulting list is ready to be sent to the socket. The result is built as a
+%% list to avoid copying large binaries.
+-spec add_packet_headers(Data :: binary(), SeqNum :: integer()) ->
+    {PacketsWithHeaders :: iodata(), NextSeqNum :: integer()}.
+add_packet_headers(<<Payload:16#ffffff/binary, Rest/binary>>, SeqNum) ->
     SeqNum1 = (SeqNum + 1) band 16#ff,
-    %% Todo: implement the case when Size >= 16#ffffff.
-    if Size < 16#ffffff ->
-        {[<<Size:24/little, SeqNum:8>>, Bin], SeqNum1}
-    end.
+    {Packets, NextSeqNum} = add_packet_headers(Rest, SeqNum1),
+    Header = <<16#ffffff:24/little, SeqNum:8>>,
+    {[Header, Payload | Packets], NextSeqNum};
+add_packet_headers(Bin, SeqNum) when byte_size(Bin) < 16#ffffff ->
+    NextSeqNum = (SeqNum + 1) band 16#ff,
+    Header = <<(byte_size(Bin)):24/little, SeqNum:8>>,
+    {[Header, Bin], NextSeqNum}.
 
 -spec parse_ok_packet(binary()) -> #ok{}.
 parse_ok_packet(<<?OK:8, Rest/binary>>) ->
@@ -1259,6 +1262,27 @@ parse_header_test() ->
 add_packet_headers_test() ->
     {Data, 43} = add_packet_headers(<<"foo">>, 42),
     ?assertEqual(<<3, 0, 0, 42, "foo">>, list_to_binary(Data)).
+
+add_packet_headers_equal_to_0xffffff_test() ->
+    BigBin = binary:copy(<<1>>, 16#ffffff),
+    {Data, 44} = add_packet_headers(BigBin, 42),
+    ?assertEqual(<<16#ff, 16#ff, 16#ff, 42, BigBin/binary,
+                   0,     0,     0,     43>>,
+                 list_to_binary(Data)).
+
+add_packet_headers_greater_than_0xffffff_test() ->
+    BigBin = binary:copy(<<1>>, 16#ffffff),
+    {Data, 44} = add_packet_headers(<<BigBin/binary, "foo">>, 42),
+    ?assertEqual(<<16#ff, 16#ff, 16#ff, 42, BigBin/binary, 3, 0, 0, 43, "foo">>,
+                 list_to_binary(Data)).
+
+add_packet_headers_2_times_greater_than_0xffffff_test() ->
+    BigBin = binary:copy(<<1>>, 16#ffffff),
+    {Data, 45} = add_packet_headers(<<BigBin/binary, BigBin/binary, "foo">>, 42),
+    ?assertEqual(<<16#ff, 16#ff, 16#ff, 42, BigBin/binary,
+                   16#ff, 16#ff, 16#ff, 43, BigBin/binary,
+                   3,     0,     0,     44, "foo">>,
+                 list_to_binary(Data)).
 
 parse_ok_test() ->
     Body = <<0, 5, 1, 2, 0, 0, 0, "Foo">>,

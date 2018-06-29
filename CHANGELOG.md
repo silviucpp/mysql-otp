@@ -2,6 +2,25 @@ Change log
 ==========
 
 
+1.3.2
+-----
+* Rewrite add_packet_headers and update version [2018-03-20 02:42:43 +0100]
+* Sending packets with size greater than 16#ffffff (#77) [2018-03-20 00:16:48 +0100]
+* Update CHANGELOG.md [2018-01-05 07:28:11 +0100]
+
+1.3.1
+-----
+* Update .app.src file and README for version 1.3.1 [2018-01-05 07:26:58 +0100]
+* Check handshake status, ignoring bit 16#4000, SERVER_SESSION_STATE_CHANGED [2017-12-28 17:29:40 +0100]
+* Ignore mysql.d [2017-12-28 17:29:40 +0100]
+* Compatible with MySQL 5.7 and MariaDB 10.2.6+ [2017-12-28 17:29:40 +0100]
+* Update README again [2017-11-23 22:36:34 +0100]
+* Update README [2017-11-23 22:34:24 +0100]
+* Move SSL tests to separate suite [2017-11-23 22:07:18 +0100]
+* Linebreak long lines [2017-11-23 22:05:51 +0100]
+* Update erlang.mk and fix dialyzer plt apps [2017-11-23 22:04:39 +0100]
+* Update changelog 1.3.0 [2017-11-23 21:57:57 +0100]
+
 1.3.0
 -----
 * add erlang 20 for test [2017-09-21 13:32:38 +0200]
