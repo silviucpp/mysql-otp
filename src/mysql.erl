@@ -25,6 +25,8 @@
 %% gen_server is locally registered.
 -module(mysql).
 
+-include("exception.hrl").
+
 -export([start_link/1, query/2, query/3, query/4, execute/3, execute/4,
          prepare/2, prepare/3, unprepare/2,
          warning_count/1, affected_rows/1, autocommit/1, insert_id/1,
@@ -389,7 +391,7 @@ transaction(Conn, Fun, Args, Retries) when is_list(Args),
             ok = gen_server:call(Conn, commit),
             {atomic, ResultOfFun}
     catch
-        throw:{implicit_rollback, N, Reason} when N >= 1 ->
+        ?EXCEPTION(throw,{implicit_rollback, N, Reason}, Stacktrace) when N >= 1 ->
             %% Jump out of N nested transactions to restart the outer-most one.
             %% The server has already rollbacked so we shouldn't do that here.
             case N of
@@ -406,29 +408,29 @@ transaction(Conn, Fun, Args, Retries) when is_list(Args),
                             %% seem to have fully rollbacked and an extra
                             %% rollback doesn't hurt.
                             ok = query(Conn, <<"ROLLBACK">>),
-                            {aborted, {Reason, erlang:get_stacktrace()}}
+                            {aborted, {Reason, ?GET_STACK(Stacktrace)}}
                     end;
                 _ ->
                     %% Re-throw with the same trace. We'll use that in the
                     %% final {aborted, {Reason, Trace}} in the outer level.
                     erlang:raise(throw, {implicit_rollback, N - 1, Reason},
-                                 erlang:get_stacktrace())
+                                 ?GET_STACK(Stacktrace))
             end;
-        error:{implicit_commit, _Query} = E ->
+        ?EXCEPTION(error, {implicit_commit, _Query} = E, Stacktrace) ->
             %% The called did something like ALTER TABLE which resulted in an
             %% implicit commit. The server has already committed. We need to
             %% jump out of N levels of transactions.
             %%
             %% Returning 'atomic' or 'aborted' would both be wrong. Raise an
             %% exception is the best we can do.
-            erlang:raise(error, E, erlang:get_stacktrace());
-        Class:Reason ->
+            erlang:raise(error, E, ?GET_STACK(Stacktrace));
+        ?EXCEPTION(Class, Reason, Stacktrace) ->
             %% We must be able to rollback. Otherwise let's crash.
             ok = gen_server:call(Conn, rollback),
             %% These forms for throw, error and exit mirror Mnesia's behaviour.
             Aborted = case Class of
                 throw -> {throw, Reason};
-                error -> {Reason, erlang:get_stacktrace()};
+                error -> {Reason, ?GET_STACK(Stacktrace)};
                 exit  -> Reason
             end,
             {aborted, Aborted}
