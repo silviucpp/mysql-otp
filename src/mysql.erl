@@ -386,7 +386,7 @@ transaction(Conn, Fun, Args, Retries) when is_list(Args),
                                            is_function(Fun, length(Args)) ->
     %% The guard makes sure that we can apply Fun to Args. Any error we catch
     %% in the try-catch are actual errors that occurred in Fun.
-    ok = gen_server:call(Conn, start_transaction, infinity),
+    ok = gen_server:call(Conn, start_transaction),
     execute_transaction(Conn, Fun, Args, Retries).
 
 %% @private
@@ -409,7 +409,7 @@ transaction(Conn, Fun, Args, Retries) when is_list(Args),
 execute_transaction(Conn, Fun, Args, Retries) ->
     try apply(Fun, Args) of
         ResultOfFun ->
-            ok = gen_server:call(Conn, commit, infinity),
+            ok = gen_server:call(Conn, commit),
             {atomic, ResultOfFun}
     catch
         %% We are at the top level, try to restart the transaction if there are
@@ -442,7 +442,7 @@ execute_transaction(Conn, Fun, Args, Retries) ->
             erlang:raise(error, E, ?GET_STACK(Stacktrace));
         ?EXCEPTION(Class, Reason, Stacktrace) ->
             %% We must be able to rollback. Otherwise let's crash.
-            ok = gen_server:call(Conn, rollback, infinity),
+            ok = gen_server:call(Conn, rollback),
             %% These forms for throw, error and exit mirror Mnesia's behaviour.
             Aborted = case Class of
                 throw -> {throw, Reason};
